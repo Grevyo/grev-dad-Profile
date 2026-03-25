@@ -1055,6 +1055,8 @@ def normalize_players(df: pd.DataFrame) -> pd.DataFrame:
     for col in numeric_cols:
         if col in out.columns:
             out[col] = pd.to_numeric(out[col], errors="coerce")
+        else:
+            out[col] = 0.0
 
     for col in [
         "match_id", "competition", "map", "my_team", "opponent_team",
@@ -1074,6 +1076,8 @@ def normalize_tactics(df: pd.DataFrame) -> pd.DataFrame:
     for col in numeric_cols:
         if col in out.columns:
             out[col] = pd.to_numeric(out[col], errors="coerce")
+        else:
+            out[col] = 0.0
 
     for col in [
         "match_id", "competition", "map", "my_team", "opponent_team",
@@ -1516,7 +1520,26 @@ def build_match_perf(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty or "match_id" not in df.columns:
         return pd.DataFrame()
 
-    out = df.groupby("match_id", as_index=False).agg(
+    work = df.copy()
+    for col, default in {
+        "date": "",
+        "time": "",
+        "competition": "",
+        "map": "",
+        "opponent_team": "",
+        "tier": "",
+        "kills": 0.0,
+        "deaths": 0.0,
+        "damage": 0.0,
+        "mvps": 0.0,
+        "rounds_played": 0.0,
+        "hs_pct": 0.0,
+        "accuracy_pct": 0.0,
+    }.items():
+        if col not in work.columns:
+            work[col] = default
+
+    out = work.groupby("match_id", as_index=False).agg(
         date=("date", "first"),
         time=("time", "first"),
         competition=("competition", "first"),
@@ -1550,7 +1573,22 @@ def build_comp_perf(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty or "competition" not in df.columns:
         return pd.DataFrame()
 
-    out = df.groupby("competition", as_index=False).agg(
+    work = df.copy()
+    for col, default in {
+        "match_id": "",
+        "kills": 0.0,
+        "deaths": 0.0,
+        "damage": 0.0,
+        "mvps": 0.0,
+        "rounds_played": 0.0,
+        "hs_pct": 0.0,
+        "accuracy_pct": 0.0,
+        "map": "",
+    }.items():
+        if col not in work.columns:
+            work[col] = default
+
+    out = work.groupby("competition", as_index=False).agg(
         matches=("match_id", "nunique"),
         kills=("kills", "sum"),
         deaths=("deaths", "sum"),
