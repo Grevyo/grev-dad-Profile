@@ -963,13 +963,19 @@ def calculate_player_metrics(player_df: pd.DataFrame) -> dict:
         }
 
     matches = player_df["match_id"].nunique() if "match_id" in player_df.columns else 0
-    kills = pd.to_numeric(player_df.get("kills", 0), errors="coerce").fillna(0).sum()
-    deaths = pd.to_numeric(player_df.get("deaths", 0), errors="coerce").fillna(0).sum()
-    damage = pd.to_numeric(player_df.get("damage", 0), errors="coerce").fillna(0).sum()
-    rounds_played = pd.to_numeric(player_df.get("rounds_played", 0), errors="coerce").fillna(0).sum()
-    mvps = pd.to_numeric(player_df.get("mvps", 0), errors="coerce").fillna(0).sum()
-    hs_pct = pd.to_numeric(player_df.get("hs_pct", 0), errors="coerce").mean()
-    accuracy_pct = pd.to_numeric(player_df.get("accuracy_pct", 0), errors="coerce").mean()
+
+    def numeric_col(name: str) -> pd.Series:
+        if name in player_df.columns:
+            return pd.to_numeric(player_df[name], errors="coerce").fillna(0)
+        return pd.Series(0, index=player_df.index, dtype="float64")
+
+    kills = numeric_col("kills").sum()
+    deaths = numeric_col("deaths").sum()
+    damage = numeric_col("damage").sum()
+    rounds_played = numeric_col("rounds_played").sum()
+    mvps = numeric_col("mvps").sum()
+    hs_pct = numeric_col("hs_pct").mean()
+    accuracy_pct = numeric_col("accuracy_pct").mean()
 
     kd = kills / deaths if deaths else float(kills)
     kpr = kills / rounds_played if rounds_played else 0.0
