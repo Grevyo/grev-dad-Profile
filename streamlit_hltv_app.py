@@ -695,11 +695,28 @@ def extract_player_from_compact_row(raw_value: str) -> str:
     if not text:
         return ""
 
+    # Common case for Medisports-tagged rows inside concatenated exports.
     marker_match = re.search(r"(ⓜ\s*\|\s*.+)$", text)
     if marker_match:
         candidate = marker_match.group(1).strip()
         candidate = re.sub(r"\s*[SABCD]$", "", candidate).strip()
         return candidate
+
+    # Generic fallback: compact rows end with "<rounds_played><player><tier>".
+    # We read from the end so names from the real player field are preserved.
+    tier_match = re.search(r"([SABCD])$", text)
+    body = text[:-1] if tier_match else text
+
+    for i in range(len(body) - 2, -1, -1):
+        if body[i].isdigit() and not body[i + 1].isdigit():
+            candidate = body[i + 1 :].strip()
+            candidate = re.sub(r"^[|:\-–—\s]+", "", candidate).strip()
+            if (
+                len(candidate) >= 2
+                and len(candidate) <= 48
+                and (re.search(r"[A-Za-z]", candidate) or PLAYER_PREFIX in candidate)
+            ):
+                return candidate
 
     return ""
 
@@ -1089,6 +1106,7 @@ def normalize_players(df: pd.DataFrame) -> pd.DataFrame:
         if missing_player.any():
             out.loc[missing_player, "player"] = out.loc[missing_player, raw_source_col].astype(str).apply(extract_player_from_compact_row)
 
+    out["player"] = out["player"].fillna("").astype(str).str.strip()
     out["match_id"] = out["match_id"].fillna("").astype(str).str.strip()
     out["tier"] = out["tier"].fillna("").astype(str).str.strip()
     out = add_competition_group_column(out)
