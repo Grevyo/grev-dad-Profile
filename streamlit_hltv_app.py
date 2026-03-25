@@ -1178,6 +1178,13 @@ def load_standard_csv(path: str) -> pd.DataFrame:
 
     # Some exports are not strictly comma-delimited on every row.
     # Try strict parsing first, then fall back to python-engine autodetection.
+    expected_columns = {
+        "match_id", "date", "time", "competition", "map", "my_team", "opponent_team",
+        "player", "tier", "kills", "deaths", "mvps", "kpd", "accuracy_pct", "hs_pct",
+        "damage", "rounds_played", "side", "tactic_name", "wins", "losses",
+        "total_rounds", "win_rate_pct",
+    }
+
     for kwargs in [
         {},
         {"sep": None, "engine": "python"},
@@ -1186,10 +1193,27 @@ def load_standard_csv(path: str) -> pd.DataFrame:
         try:
             df = pd.read_csv(p, **kwargs)
             df.columns = [str(c).strip() for c in df.columns]
+            if df.empty and len(df.columns) <= 1:
+                continue
+
+            column_overlap = {c.casefold() for c in df.columns} & expected_columns
+            if len(df.columns) > 1 and not column_overlap:
+                continue
+
             if not df.empty or len(df.columns) > 1:
                 return df
         except Exception:
             pass
+
+    # Last-resort fallback for malformed exports where all fields are concatenated
+    # into a single line without a delimiter.
+    try:
+        lines = p.read_text(encoding="utf-8", errors="ignore").splitlines()
+        lines = [line.strip() for line in lines if line.strip()]
+        if len(lines) >= 2:
+            return pd.DataFrame({lines[0]: lines[1:]})
+    except Exception:
+        pass
 
     return pd.DataFrame()
 
