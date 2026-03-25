@@ -721,12 +721,7 @@ def team_player_mask(df: pd.DataFrame) -> pd.Series:
     if df.empty:
         return pd.Series(dtype=bool)
 
-    mask = pd.Series(False, index=df.index)
-    if "player" in df.columns:
-        mask = mask | is_team_player_series(df["player"])
-    if "my_team" in df.columns:
-        mask = mask | is_my_team_series(df["my_team"])
-    return mask
+    return pd.Series(True, index=df.index)
 
 def clean_path_string(value: str) -> str:
     text = str(value).strip()
@@ -1582,7 +1577,7 @@ def get_player_options(players: pd.DataFrame):
     if players.empty or "player" not in players.columns:
         return []
 
-    rows = players[team_player_mask(players)].copy()
+    rows = players.copy()
     if rows.empty:
         return []
 
@@ -1613,16 +1608,12 @@ def apply_top_filters(players: pd.DataFrame, tactics: pd.DataFrame, selected_pla
                       selected_comp, selected_map, selected_tier, selected_opp, selected_side,
                       date_mode, date_from, date_to):
     if not players.empty and "player" in players.columns:
-        player_rows = players[
-            team_player_mask(players)
-        ].copy()
+        player_rows = players.copy()
     else:
         player_rows = pd.DataFrame(columns=["player"])
 
-    if not tactics.empty and "my_team" in tactics.columns:
-        team_tactics = tactics[
-            is_my_team_series(tactics["my_team"])
-        ].copy()
+    if not tactics.empty:
+        team_tactics = tactics.copy()
     else:
         team_tactics = pd.DataFrame()
 
@@ -2957,15 +2948,11 @@ if players_df.empty and tactics_df.empty:
 
 player_options = get_player_options(players_df)
 if not player_options:
-    st.warning(f"No {MY_TEAM_NAME} player found. Team players should include {PLAYER_PREFIX} (or {MY_TEAM_NAME}) in their name.")
+    st.warning("No player found in PlayerDataMatser.csv.")
     st.stop()
 
-all_player_rows = players_df[team_player_mask(players_df)].copy()
-all_tactic_rows = (
-    tactics_df[is_my_team_series(tactics_df["my_team"])].copy()
-    if (not tactics_df.empty and "my_team" in tactics_df.columns)
-    else pd.DataFrame()
-)
+all_player_rows = players_df.copy()
+all_tactic_rows = tactics_df.copy() if not tactics_df.empty else pd.DataFrame()
 
 all_comps = sorted(set(unique_sorted(all_player_rows, "competition") + unique_sorted(all_tactic_rows, "competition")))
 all_maps = sorted(set(unique_sorted(all_player_rows, "map") + unique_sorted(all_tactic_rows, "map")))
