@@ -2921,7 +2921,7 @@ if players_df.empty and tactics_df.empty:
 
 player_options = get_player_options(players_df)
 if not player_options:
-    st.warning("No Medicart player found.")
+    st.warning(f"No {MY_TEAM_NAME} player found. Team players should include {MY_TEAM_NAME} in their name.")
     st.stop()
 
 all_player_rows = players_df[players_df["player"].astype(str).str.startswith(PLAYER_PREFIX, na=False)].copy()
