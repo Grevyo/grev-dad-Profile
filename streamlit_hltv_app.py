@@ -697,6 +697,14 @@ def clean_player_name(name: str) -> str:
     text = re.sub(r"^[^A-Za-z0-9]*\|\s*", "", text)
     return text.casefold()
 
+def is_team_player_series(values: pd.Series) -> pd.Series:
+    text = values.astype(str).str.strip()
+    return (
+        text.str.startswith(PLAYER_PREFIX, na=False)
+        | text.str.contains(PLAYER_PREFIX, na=False, regex=False)
+        | text.str.contains(MY_TEAM_NAME, na=False, regex=False)
+    )
+
 def clean_path_string(value: str) -> str:
     text = str(value).strip()
     return text.strip('"').strip("'")
@@ -1551,7 +1559,7 @@ def get_player_options(players: pd.DataFrame):
     if players.empty or "player" not in players.columns:
         return []
 
-    rows = players[players["player"].astype(str).str.startswith(PLAYER_PREFIX, na=False)].copy()
+    rows = players[is_team_player_series(players["player"])].copy()
     if rows.empty:
         return []
 
@@ -1583,7 +1591,7 @@ def apply_top_filters(players: pd.DataFrame, tactics: pd.DataFrame, selected_pla
                       date_mode, date_from, date_to):
     if not players.empty and "player" in players.columns:
         player_rows = players[
-            players["player"].astype(str).str.startswith(PLAYER_PREFIX, na=False)
+            is_team_player_series(players["player"])
         ].copy()
     else:
         player_rows = pd.DataFrame(columns=["player"])
@@ -2926,10 +2934,10 @@ if players_df.empty and tactics_df.empty:
 
 player_options = get_player_options(players_df)
 if not player_options:
-    st.warning(f"No {MY_TEAM_NAME} player found. Team players should include {MY_TEAM_NAME} in their name.")
+    st.warning(f"No {MY_TEAM_NAME} player found. Team players should include {PLAYER_PREFIX} (or {MY_TEAM_NAME}) in their name.")
     st.stop()
 
-all_player_rows = players_df[players_df["player"].astype(str).str.startswith(PLAYER_PREFIX, na=False)].copy()
+all_player_rows = players_df[is_team_player_series(players_df["player"])].copy()
 all_tactic_rows = (
     tactics_df[tactics_df["my_team"].astype(str).str.strip() == MY_TEAM_NAME].copy()
     if (not tactics_df.empty and "my_team" in tactics_df.columns)
@@ -3026,7 +3034,7 @@ filtered_matches = apply_date_filter(filtered_matches, date_mode, date_from, dat
 team_visible_df = players_df.copy()
 if not team_visible_df.empty:
     team_visible_df = team_visible_df[
-        team_visible_df["player"].astype(str).str.startswith(PLAYER_PREFIX, na=False)
+        is_team_player_series(team_visible_df["player"])
     ].copy()
     team_visible_df = apply_date_filter(team_visible_df, date_mode, date_from, date_to)
 
