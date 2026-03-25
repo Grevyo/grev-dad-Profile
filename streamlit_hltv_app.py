@@ -1112,12 +1112,23 @@ def load_standard_csv(path: str) -> pd.DataFrame:
     p = Path(path)
     if not p.exists() or p.stat().st_size == 0:
         return pd.DataFrame()
-    try:
-        df = pd.read_csv(p)
-        df.columns = [str(c).strip() for c in df.columns]
-        return df
-    except Exception:
-        return pd.DataFrame()
+
+    # Some exports are not strictly comma-delimited on every row.
+    # Try strict parsing first, then fall back to python-engine autodetection.
+    for kwargs in [
+        {},
+        {"sep": None, "engine": "python"},
+        {"engine": "python"},
+    ]:
+        try:
+            df = pd.read_csv(p, **kwargs)
+            df.columns = [str(c).strip() for c in df.columns]
+            if not df.empty or len(df.columns) > 1:
+                return df
+        except Exception:
+            pass
+
+    return pd.DataFrame()
 
 @st.cache_data
 def load_achievements_csv(path: str) -> pd.DataFrame:
