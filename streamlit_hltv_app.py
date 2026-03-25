@@ -1,7 +1,9 @@
 from pathlib import Path
 from html import escape
 
-COMPETITION_LOGOS_DIR = Path("competition_logos")
+APP_DIR = Path(__file__).resolve().parent
+
+COMPETITION_LOGOS_DIR = APP_DIR / "competition_logos"
 
 
 def sanitize_filename(value: str) -> str:
@@ -97,16 +99,16 @@ st.set_page_config(
 # -----------------------------
 # Constants
 # -----------------------------
-PLAYERS_PATH = Path("PlayerDataMatser.csv")
-TACTICS_PATH = Path("TacticsDataMaster.csv")
-ACHIEVEMENTS_PATH = Path("Achievements.csv")  # pipe-delimited
+PLAYERS_PATH = APP_DIR / "PlayerDataMatser.csv"
+TACTICS_PATH = APP_DIR / "TacticsDataMaster.csv"
+ACHIEVEMENTS_PATH = APP_DIR / "Achievements.csv"  # pipe-delimited
 
 MY_TEAM_NAME = "ᴍᴇᴅɪꜱᴘᴏʀᴛꜱ ⓜ"
 PLAYER_PREFIX = "ⓜ | "
 
-PLAYER_PHOTOS_DIR = Path("player_photos")
-TEAM_LOGOS_DIR = Path("team_logos")
-MAP_IMAGES_DIR = Path("map_images")
+PLAYER_PHOTOS_DIR = APP_DIR / "player_photos"
+TEAM_LOGOS_DIR = APP_DIR / "team_logos"
+MAP_IMAGES_DIR = APP_DIR / "map_images"
 
 # -----------------------------
 # Styling
