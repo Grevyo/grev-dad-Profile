@@ -80,6 +80,7 @@ def safe_render_image(image_path, use_container_width=True):
 
 import base64
 import re
+import unicodedata
 
 import pandas as pd
 import numpy as np
@@ -697,6 +698,17 @@ def clean_player_name(name: str) -> str:
     text = re.sub(r"^[^A-Za-z0-9]*\|\s*", "", text)
     return text.casefold()
 
+def normalize_team_text(value: str) -> str:
+    text = " ".join(str(value).strip().split())
+    text = unicodedata.normalize("NFKC", text).casefold()
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+def is_my_team_series(values: pd.Series) -> pd.Series:
+    normalized_team = normalize_team_text(MY_TEAM_NAME)
+    normalized_values = values.astype(str).apply(normalize_team_text)
+    return normalized_values == normalized_team
+
 def is_team_player_series(values: pd.Series) -> pd.Series:
     text = values.astype(str).str.strip()
     return (
@@ -704,6 +716,17 @@ def is_team_player_series(values: pd.Series) -> pd.Series:
         | text.str.contains(PLAYER_PREFIX, na=False, regex=False)
         | text.str.contains(MY_TEAM_NAME, na=False, regex=False)
     )
+
+def team_player_mask(df: pd.DataFrame) -> pd.Series:
+    if df.empty:
+        return pd.Series(dtype=bool)
+
+    mask = pd.Series(False, index=df.index)
+    if "player" in df.columns:
+        mask = mask | is_team_player_series(df["player"])
+    if "my_team" in df.columns:
+        mask = mask | is_my_team_series(df["my_team"])
+    return mask
 
 def clean_path_string(value: str) -> str:
     text = str(value).strip()
@@ -1559,7 +1582,7 @@ def get_player_options(players: pd.DataFrame):
     if players.empty or "player" not in players.columns:
         return []
 
-    rows = players[is_team_player_series(players["player"])].copy()
+    rows = players[team_player_mask(players)].copy()
     if rows.empty:
         return []
 
@@ -1591,14 +1614,14 @@ def apply_top_filters(players: pd.DataFrame, tactics: pd.DataFrame, selected_pla
                       date_mode, date_from, date_to):
     if not players.empty and "player" in players.columns:
         player_rows = players[
-            is_team_player_series(players["player"])
+            team_player_mask(players)
         ].copy()
     else:
         player_rows = pd.DataFrame(columns=["player"])
 
     if not tactics.empty and "my_team" in tactics.columns:
         team_tactics = tactics[
-            tactics["my_team"].astype(str).str.strip() == MY_TEAM_NAME
+            is_my_team_series(tactics["my_team"])
         ].copy()
     else:
         team_tactics = pd.DataFrame()
@@ -2937,9 +2960,9 @@ if not player_options:
     st.warning(f"No {MY_TEAM_NAME} player found. Team players should include {PLAYER_PREFIX} (or {MY_TEAM_NAME}) in their name.")
     st.stop()
 
-all_player_rows = players_df[is_team_player_series(players_df["player"])].copy()
+all_player_rows = players_df[team_player_mask(players_df)].copy()
 all_tactic_rows = (
-    tactics_df[tactics_df["my_team"].astype(str).str.strip() == MY_TEAM_NAME].copy()
+    tactics_df[is_my_team_series(tactics_df["my_team"])].copy()
     if (not tactics_df.empty and "my_team" in tactics_df.columns)
     else pd.DataFrame()
 )
