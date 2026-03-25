@@ -690,6 +690,20 @@ def stat_label_with_icon(label: str) -> str:
     icon = STAT_ICONS.get(label, "•")
     return f"{icon} {label}"
 
+def extract_player_from_compact_row(raw_value: str) -> str:
+    text = str(raw_value).strip()
+    if not text:
+        return ""
+
+    marker_match = re.search(r"(ⓜ\s*\|\s*.+)$", text)
+    if marker_match:
+        candidate = marker_match.group(1).strip()
+        candidate = re.sub(r"\s*[SABCD]$", "", candidate).strip()
+        return candidate
+
+    return ""
+
+
 def clean_player_name(name: str) -> str:
     text = " ".join(str(name).strip().split())
     if text.startswith(PLAYER_PREFIX):
@@ -1048,6 +1062,8 @@ def render_rating_gauge(rating: float):
 # -----------------------------
 def normalize_players(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
+    raw_source_col = out.columns[0] if len(out.columns) == 1 else None
+
     numeric_cols = [
         "kills", "deaths", "mvps", "kpd", "accuracy_pct", "hs_pct",
         "damage", "rounds_played"
@@ -1063,7 +1079,15 @@ def normalize_players(df: pd.DataFrame) -> pd.DataFrame:
         "player", "tier", "date", "time"
     ]:
         if col not in out.columns:
-            out[col] = ""
+            if col == "player" and raw_source_col:
+                out[col] = out[raw_source_col].astype(str).apply(extract_player_from_compact_row)
+            else:
+                out[col] = ""
+
+    if "player" in out.columns and raw_source_col:
+        missing_player = out["player"].astype(str).str.strip() == ""
+        if missing_player.any():
+            out.loc[missing_player, "player"] = out.loc[missing_player, raw_source_col].astype(str).apply(extract_player_from_compact_row)
 
     out["match_id"] = out["match_id"].fillna("").astype(str).str.strip()
     out["tier"] = out["tier"].fillna("").astype(str).str.strip()
@@ -1639,6 +1663,11 @@ def get_player_options(players: pd.DataFrame):
         )
     else:
         rows["_last_played"] = pd.to_datetime(date_text, errors="coerce", dayfirst=False)
+
+    rows["player"] = rows["player"].astype(str).str.strip()
+    rows = rows[rows["player"] != ""]
+    if rows.empty:
+        return []
 
     latest = (
         rows.groupby("player", as_index=False)["_last_played"]
