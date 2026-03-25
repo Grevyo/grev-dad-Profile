@@ -104,7 +104,7 @@ TACTICS_PATH = APP_DIR / "TacticsDataMaster.csv"
 ACHIEVEMENTS_PATH = APP_DIR / "Achievements.csv"  # pipe-delimited
 
 MY_TEAM_NAME = "ᴍᴇᴅɪꜱᴘᴏʀᴛꜱ ⓜ"
-PLAYER_PREFIX = "ⓜ | "
+PLAYER_PREFIX = "ⓜ"
 
 PLAYER_PHOTOS_DIR = APP_DIR / "player_photos"
 TEAM_LOGOS_DIR = APP_DIR / "team_logos"
@@ -693,6 +693,7 @@ def clean_player_name(name: str) -> str:
     text = " ".join(str(name).strip().split())
     if text.startswith(PLAYER_PREFIX):
         text = text[len(PLAYER_PREFIX):].strip()
+    text = re.sub(r"^\|\s*", "", text)
     text = re.sub(r"^[^A-Za-z0-9]*\|\s*", "", text)
     return text.casefold()
 
@@ -1278,8 +1279,12 @@ def get_player_achievements(player_name: str, achievements_df: pd.DataFrame) -> 
     if player_rows.empty:
         player_rows = temp[temp["_player_clean"] == target_clean]
     if player_rows.empty:
-        prefixed_target = f"{PLAYER_PREFIX}{target_exact}".strip()
-        player_rows = temp[temp["_player_exact"] == prefixed_target]
+        prefixed_variants = {
+            f"{PLAYER_PREFIX}{target_exact}".strip(),
+            f"{PLAYER_PREFIX} {target_exact}".strip(),
+            f"{PLAYER_PREFIX} | {target_exact}".strip(),
+        }
+        player_rows = temp[temp["_player_exact"].isin(prefixed_variants)]
     if player_rows.empty:
         return []
 
